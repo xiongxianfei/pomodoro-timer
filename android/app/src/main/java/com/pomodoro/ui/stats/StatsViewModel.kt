@@ -36,9 +36,9 @@ class StatsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            firestoreRepo.observeRecentSessions(limit = 500).collect { sessions ->
-                _state.value = computeStats(sessions)
-            }
+            firestoreRepo.observeRecentSessions(limit = 500)
+                .catch { /* user signed out */ }
+                .collect { sessions -> _state.value = computeStats(sessions) }
         }
     }
 

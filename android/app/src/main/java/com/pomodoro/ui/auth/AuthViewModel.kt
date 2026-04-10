@@ -29,6 +29,13 @@ class AuthViewModel @Inject constructor(
     )
     val state: StateFlow<AuthState> = _state
 
+    init {
+        // Keep state in sync with Firebase auth — any signOut() from any screen updates all observers
+        auth.addAuthStateListener { firebaseAuth ->
+            _state.value = if (firebaseAuth.currentUser != null) AuthState.Authenticated else AuthState.Unauthenticated
+        }
+    }
+
     fun signInWithGoogle(account: GoogleSignInAccount) {
         viewModelScope.launch {
             _state.value = AuthState.Loading
@@ -40,6 +47,10 @@ class AuthViewModel @Inject constructor(
                 _state.value = AuthState.Error(e.message ?: "Sign-in failed")
             }
         }
+    }
+
+    fun setError(message: String) {
+        _state.value = AuthState.Error(message)
     }
 
     fun signOut() {

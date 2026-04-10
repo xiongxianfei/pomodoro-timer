@@ -1,48 +1,51 @@
 package com.pomodoro.ui.auth
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.pomodoro.R
 
 @Composable
-fun AuthScreen(
-    onAuthenticated: () -> Unit,
-    viewModel: AuthViewModel = hiltViewModel(),
-) {
+fun AuthScreen(viewModel: AuthViewModel) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    if (state == AuthState.Authenticated) {
-        onAuthenticated()
-        return
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestEmail()
+            .build()
     }
-
-    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(context.getString(R.string.default_web_client_id))
-        .requestEmail()
-        .build()
-    val googleSignInClient = GoogleSignIn.getClient(context, gso)
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        Log.d("AuthScreen", "Sign-in result code: ${result.resultCode}")
         if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            val account = task.result
-            if (account != null) viewModel.signInWithGoogle(account)
+            try {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                val account = task.getResult(ApiException::class.java)
+                Log.d("AuthScreen", "Got account: ${account.email}, idToken null: ${account.idToken == null}")
+                viewModel.signInWithGoogle(account)
+            } catch (e: ApiException) {
+                Log.e("AuthScreen", "Google sign-in ApiException: statusCode=${e.statusCode} msg=${e.message}")
+                viewModel.setError("Sign-in failed (code ${e.statusCode})")
+            }
+        } else {
+            Log.e("AuthScreen", "Sign-in not OK, resultCode=${result.resultCode}")
+            viewModel.setError("Sign-in cancelled or failed (resultCode ${result.resultCode})")
         }
     }
 
@@ -59,10 +62,14 @@ fun AuthScreen(
         when (state) {
             is AuthState.Loading -> CircularProgressIndicator()
             is AuthState.Error -> {
-                Text((state as AuthState.Error).message, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = (state as AuthState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { launcher.launch(googleSignInClient.signInIntent) }) {
-                    Text("Sign in with Google")
+                    Text("Try Again")
                 }
             }
             else -> {

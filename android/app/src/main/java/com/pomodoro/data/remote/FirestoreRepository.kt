@@ -3,8 +3,10 @@ package com.pomodoro.data.remote
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.SetOptions
 import com.pomodoro.data.model.*
+import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,12 +23,21 @@ class FirestoreRepository @Inject constructor(
     private val uid get() = auth.currentUser?.uid ?: error("Not authenticated")
     private fun userRef() = db.collection("users").document(uid)
 
+    // Close the flow cleanly on PERMISSION_DENIED (user signed out); propagate other errors
+    private fun <T> ProducerScope<T>.handleError(error: FirebaseFirestoreException) {
+        if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+            close()
+        } else {
+            close(error)
+        }
+    }
+
     // --- Timer State ---
 
     fun observeTimerState(): Flow<TimerState?> = callbackFlow {
         val listener = userRef().collection("timerState").document("timerState")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
+                if (error != null) { handleError(error); return@addSnapshotListener }
                 val state = snapshot?.takeIf { it.exists() }?.let { doc ->
                     TimerState(
                         status = TimerStatus.valueOf(doc.getString("status") ?: "IDLE"),
@@ -101,7 +112,7 @@ class FirestoreRepository @Inject constructor(
             .orderBy("startedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .limit(limit)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
+                if (error != null) { handleError(error); return@addSnapshotListener }
                 val sessions = snapshot?.documents?.map { doc ->
                     Session(
                         id = doc.id,
@@ -126,7 +137,7 @@ class FirestoreRepository @Inject constructor(
         val listener = userRef().collection("presets")
             .orderBy("sortOrder")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
+                if (error != null) { handleError(error); return@addSnapshotListener }
                 val presets = snapshot?.documents?.map { doc ->
                     Preset(
                         id = doc.id,
@@ -171,7 +182,7 @@ class FirestoreRepository @Inject constructor(
         val listener = userRef().collection("tags")
             .orderBy("name")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
+                if (error != null) { handleError(error); return@addSnapshotListener }
                 val tags = snapshot?.documents?.map { doc ->
                     Tag(
                         id = doc.id,

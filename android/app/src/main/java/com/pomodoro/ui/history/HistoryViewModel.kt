@@ -19,9 +19,9 @@ class HistoryViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            firestoreRepo.observeRecentSessions(limit = 100).collect { sessions ->
-                _sessions.value = sessions
-            }
+            firestoreRepo.observeRecentSessions(limit = 100)
+                .catch { /* user signed out */ }
+                .collect { sessions -> _sessions.value = sessions }
         }
     }
 }

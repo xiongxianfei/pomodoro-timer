@@ -1,6 +1,11 @@
 package com.pomodoro.ui.stats
 
+import android.content.ContentValues
 import android.content.Intent
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -74,7 +79,36 @@ fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
             }
         }
 
+        // Save to Downloads
         Button(
+            onClick = {
+                val csv = viewModel.exportToCsv()
+                val fileName = "pomodoro_sessions.csv"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                        put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    }
+                    val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    if (uri != null) {
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(csv.toByteArray()) }
+                        Toast.makeText(context, "Saved to Downloads/$fileName", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val file = File(dir, fileName)
+                    file.writeText(csv)
+                    Toast.makeText(context, "Saved to Downloads/$fileName", Toast.LENGTH_LONG).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Save to Downloads (CSV)")
+        }
+
+        // Share via other apps
+        OutlinedButton(
             onClick = {
                 val csv = viewModel.exportToCsv()
                 val file = File(context.cacheDir, "pomodoro_sessions.csv")
@@ -85,11 +119,11 @@ fun StatsScreen(viewModel: StatsViewModel = hiltViewModel()) {
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                context.startActivity(Intent.createChooser(intent, "Export sessions"))
+                context.startActivity(Intent.createChooser(intent, "Share sessions"))
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Export Sessions (CSV)")
+            Text("Share via…")
         }
     }
 }

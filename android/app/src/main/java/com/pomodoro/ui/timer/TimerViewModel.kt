@@ -7,6 +7,7 @@ import com.pomodoro.data.model.*
 import com.pomodoro.data.remote.FirestoreRepository
 import com.pomodoro.domain.timer.TimerEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -25,37 +26,52 @@ class TimerViewModel @Inject constructor(
     private val _timerState = MutableStateFlow(TimerState())
     val timerState: StateFlow<TimerState> = _timerState
 
-    private val _presets = MutableStateFlow<List<Preset>>(emptyList())
+    private val _presets = MutableStateFlow<List<Preset>>(BUILT_IN_PRESETS)
     val presets: StateFlow<List<Preset>> = _presets
 
-    private val _selectedPreset = MutableStateFlow<Preset?>(null)
+    private val _selectedPreset = MutableStateFlow<Preset?>(BUILT_IN_PRESETS.first())
     val selectedPreset: StateFlow<Preset?> = _selectedPreset
 
-    val remainingSeconds: StateFlow<Long> = combine(_timerState, _selectedPreset) { state, preset ->
+    private val ticker: Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(1_000)
+        }
+    }
+
+    val remainingSeconds: StateFlow<Long> = combine(_timerState, _selectedPreset, ticker) { state, preset, _ ->
         val duration = preset?.let { timerEngine.totalDurationForState(state, it) } ?: 1500L
         timerEngine.remainingSeconds(state, duration)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1500L)
 
     init {
         viewModelScope.launch {
-            firestoreRepo.observePresets().collect { presets ->
-                _presets.value = presets
-                if (_selectedPreset.value == null && presets.isNotEmpty()) {
-                    _selectedPreset.value = presets.first()
+            firestoreRepo.observePresets()
+                .catch { /* user signed out, flow closed cleanly */ }
+                .collect { presets ->
+                    if (presets.isEmpty()) {
+                        BUILT_IN_PRESETS.forEach { firestoreRepo.writePreset(it) }
+                    } else {
+                        _presets.value = presets
+                        if (_selectedPreset.value?.id !in presets.map { it.id }) {
+                            _selectedPreset.value = presets.first()
+                        }
+                    }
                 }
-            }
         }
         viewModelScope.launch {
-            firestoreRepo.observeTimerState().collect { state ->
-                if (state != null) _timerState.value = state
-            }
+            firestoreRepo.observeTimerState()
+                .catch { /* user signed out, flow closed cleanly */ }
+                .collect { state ->
+                    if (state != null) _timerState.value = state
+                }
         }
     }
 
     fun selectPreset(preset: Preset) { _selectedPreset.value = preset }
 
     fun start() {
-        val preset = _selectedPreset.value ?: return
+        val preset = _selectedPreset.value ?: BUILT_IN_PRESETS.first()
         val current = _timerState.value
         val newState = current.copy(
             status = TimerStatus.RUNNING,
@@ -69,7 +85,7 @@ class TimerViewModel @Inject constructor(
 
     fun pause() {
         val current = _timerState.value
-        val preset = _selectedPreset.value ?: return
+        val preset = _selectedPreset.value ?: BUILT_IN_PRESETS.first()
         val totalDuration = timerEngine.totalDurationForState(current, preset)
         val elapsed = totalDuration - timerEngine.remainingSeconds(current, totalDuration)
         val newState = current.copy(
@@ -102,7 +118,7 @@ class TimerViewModel @Inject constructor(
 
     fun completeSession(tags: List<String> = emptyList(), projectName: String = "") {
         val current = _timerState.value
-        val preset = _selectedPreset.value ?: return
+        val preset = _selectedPreset.value ?: BUILT_IN_PRESETS.first()
         val session = Session(
             id = UUID.randomUUID().toString(),
             presetId = preset.id,
@@ -126,5 +142,46 @@ class TimerViewModel @Inject constructor(
             firestoreRepo.writeSession(session)
             firestoreRepo.writeTimerState(breakState, deviceId)
         }
+    }
+
+    companion object {
+        val BUILT_IN_PRESETS = listOf(
+            Preset(
+                id = "preset-standard",
+                name = "Standard",
+                workDuration = 25,
+                shortBreakDuration = 5,
+                longBreakDuration = 15,
+                sessionsBeforeLongBreak = 4,
+                color = "#E53935",
+                icon = "timer",
+                sortOrder = 0,
+                builtIn = true,
+            ),
+            Preset(
+                id = "preset-deep-work",
+                name = "Deep Work",
+                workDuration = 50,
+                shortBreakDuration = 10,
+                longBreakDuration = 30,
+                sessionsBeforeLongBreak = 3,
+                color = "#1E88E5",
+                icon = "brain",
+                sortOrder = 1,
+                builtIn = true,
+            ),
+            Preset(
+                id = "preset-quick-task",
+                name = "Quick Task",
+                workDuration = 15,
+                shortBreakDuration = 3,
+                longBreakDuration = 10,
+                sessionsBeforeLongBreak = 4,
+                color = "#43A047",
+                icon = "bolt",
+                sortOrder = 2,
+                builtIn = true,
+            ),
+        )
     }
 }
