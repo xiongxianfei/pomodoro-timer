@@ -22,6 +22,7 @@ Auth: localhost:9099
 With the emulator running:
 
 ```bash
+cd firebase
 node seed/seed-emulator.js
 ```
 
