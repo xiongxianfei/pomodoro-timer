@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.coroutines.android)
     implementation(libs.google.services.play.auth)
+    implementation("com.google.android.material:material:1.12.0")
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
