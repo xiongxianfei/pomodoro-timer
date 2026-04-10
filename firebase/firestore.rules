@@ -2,36 +2,42 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // All user data is private — only the authenticated user can read/write
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // All user data is private — only the authenticated user can access it.
+    // NOTE: Parent match /users/{uid} does NOT cover subcollections — each
+    // subcollection carries its own rules to avoid accidental permission bleed.
     match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if isOwner(uid);
+    }
 
-      match /profile {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
+    match /users/{uid}/profile/{docId} {
+      allow read, write: if isOwner(uid);
+    }
 
-      match /settings {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
+    match /users/{uid}/settings/{docId} {
+      allow read, write: if isOwner(uid);
+    }
 
-      match /presets/{presetId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
+    match /users/{uid}/presets/{presetId} {
+      allow read, write: if isOwner(uid);
+    }
 
-      match /timerState {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
+    match /users/{uid}/timerState/{docId} {
+      allow read, write: if isOwner(uid);
+    }
 
-      match /sessions/{sessionId} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        // Sessions are immutable once created — no updates allowed
-        allow create: if request.auth != null && request.auth.uid == uid;
-        allow update, delete: if false;
-      }
+    match /users/{uid}/sessions/{sessionId} {
+      allow read: if isOwner(uid);
+      // Sessions are immutable once created — no updates or deletes allowed
+      allow create: if isOwner(uid);
+      allow update, delete: if false;
+    }
 
-      match /tags/{tagId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
+    match /users/{uid}/tags/{tagId} {
+      allow read, write: if isOwner(uid);
     }
   }
 }
