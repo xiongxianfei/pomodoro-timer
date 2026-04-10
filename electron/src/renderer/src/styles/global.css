@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #e53935;
+  --color-break: #1e88e5;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: white;
+  color: #212121;
+  -webkit-font-smoothing: antialiased;
+}
