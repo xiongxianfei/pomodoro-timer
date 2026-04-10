@@ -94,6 +94,32 @@ class FirestoreRepository @Inject constructor(
         }
     }
 
+    // --- Sessions (read) ---
+
+    fun observeRecentSessions(limit: Long = 100): Flow<List<Session>> = callbackFlow {
+        val listener = userRef().collection("sessions")
+            .orderBy("startedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(limit)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) { close(error); return@addSnapshotListener }
+                val sessions = snapshot?.documents?.map { doc ->
+                    Session(
+                        id = doc.id,
+                        presetId = doc.getString("presetId") ?: "",
+                        tags = (doc.get("tags") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        projectName = doc.getString("projectName") ?: "",
+                        startedAt = doc.getTimestamp("startedAt")?.let { Instant.ofEpochSecond(it.seconds) } ?: Instant.EPOCH,
+                        endedAt = doc.getTimestamp("endedAt")?.let { Instant.ofEpochSecond(it.seconds) } ?: Instant.EPOCH,
+                        duration = (doc.getLong("duration") ?: 0L).toInt(),
+                        type = SessionType.valueOf(doc.getString("type") ?: "WORK"),
+                        completed = doc.getBoolean("completed") ?: false,
+                    )
+                } ?: emptyList()
+                trySend(sessions)
+            }
+        awaitClose { listener.remove() }
+    }
+
     // --- Presets ---
 
     fun observePresets(): Flow<List<Preset>> = callbackFlow {
