@@ -80,6 +80,6 @@ export const DEFAULT_TIMER_STATE: TimerState = {
   currentSession: 1,
   totalSessions: 4,
   isBreak: false,
-  updatedAt: 0,
+  updatedAt: 0, // sentinel: not yet synced from Firestore
   updatedBy: '',
 }
