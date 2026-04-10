@@ -26,6 +26,9 @@ export default defineConfig({
     test: {
       environment: 'jsdom',
       globals: true,
+      alias: {
+        '@/': resolve('src/renderer/src') + '/',
+      },
     },
   },
 })
