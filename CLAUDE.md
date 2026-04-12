@@ -19,17 +19,36 @@ docs/           Design spec and implementation plans
 
 ```bash
 npm run dev          # Start dev server (Vite + Electron hot reload)
-npm test             # Run Vitest unit tests (always run before committing)
+npm test             # Vitest unit tests — always run before committing
 npm run test:watch   # Watch mode
 npm run test:e2e     # Playwright E2E (requires a running dev build)
 npm run build        # Production build
 ```
 
-### Android
+### Android (run from `android/`)
 
-Open `android/` in Android Studio and build/run normally. There is no standalone CLI build for day-to-day development.
+```bash
+# Unit tests (JVM, no device needed)
+./gradlew test
 
-CI uses `gradle assembleDebug` with a mock `google-services.json` (no `gradlew`, no interactive commands).
+# Specific test class
+./gradlew test --tests "com.pomodoro.domain.timer.TimerEngineTest"
+
+# Instrumented tests (requires connected device or emulator)
+./gradlew connectedAndroidTest
+
+# Specific instrumented test class
+./gradlew connectedAndroidTest --tests "com.pomodoro.data.local.SessionDaoTest"
+
+# Debug build (what CI runs)
+./gradlew assembleDebug
+```
+
+**Test locations:**
+- `android/app/src/test/` — JVM unit tests (fast, no device). Currently: `TimerEngineTest`.
+- `android/app/src/androidTest/` — instrumented tests (need device/emulator). Currently: `SessionDaoTest`.
+
+CI uses `gradle assembleDebug` (system Gradle, not `gradlew`) with a mock `google-services.json` — no interactive commands.
 
 ### Firebase emulator (run from `firebase/`)
 
@@ -119,7 +138,7 @@ Firebase secrets are injected via GitHub Actions secrets (see `.github/workflows
 - All changes go through a feature branch → PR → merge to `main`. Never push directly to `main`.
 - Branch naming: `feat/<scope>-<description>`, `fix/<description>`
 - PRs reference the GitHub issue they close with `Closes #N` in the commit message or PR body.
-- Run `npm test` in `electron/` before opening a PR. The Android build is verified by CI.
+- Before opening a PR: run `npm test` in `electron/` and `./gradlew test` in `android/`. Instrumented tests and the full Android build are verified by CI.
 
 ---
 
