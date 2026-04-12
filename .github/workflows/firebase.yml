@@ -23,7 +23,7 @@ jobs:
       - name: Set up Java (required by Firebase emulator)
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
 
       - name: Install firebase-tools
