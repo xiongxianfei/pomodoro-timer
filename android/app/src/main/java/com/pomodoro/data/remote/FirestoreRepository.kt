@@ -40,7 +40,7 @@ class FirestoreRepository @Inject constructor(
                 if (error != null) { handleError(error); return@addSnapshotListener }
                 val state = snapshot?.takeIf { it.exists() }?.let { doc ->
                     TimerState(
-                        status = TimerStatus.valueOf(doc.getString("status") ?: "IDLE"),
+                        status = TimerStatus.valueOf((doc.getString("status") ?: "IDLE").uppercase()),
                         presetId = doc.getString("presetId") ?: "",
                         startedAt = doc.getTimestamp("startedAt")?.let { Instant.ofEpochSecond(it.seconds) },
                         pausedAt = doc.getTimestamp("pausedAt")?.let { Instant.ofEpochSecond(it.seconds) },
@@ -59,7 +59,7 @@ class FirestoreRepository @Inject constructor(
 
     suspend fun writeTimerState(state: TimerState, deviceId: String) {
         val data = mutableMapOf<String, Any?>(
-            "status" to state.status.name,
+            "status" to state.status.name.lowercase(),
             "presetId" to state.presetId,
             "startedAt" to state.startedAt?.let { com.google.firebase.Timestamp(it.epochSecond, 0) },
             "pausedAt" to state.pausedAt?.let { com.google.firebase.Timestamp(it.epochSecond, 0) },
@@ -84,7 +84,11 @@ class FirestoreRepository @Inject constructor(
             "startedAt" to com.google.firebase.Timestamp(session.startedAt.epochSecond, 0),
             "endedAt" to com.google.firebase.Timestamp(session.endedAt.epochSecond, 0),
             "duration" to session.duration,
-            "type" to session.type.name,
+            "type" to when (session.type) {
+                SessionType.WORK -> "work"
+                SessionType.SHORT_BREAK -> "shortBreak"
+                SessionType.LONG_BREAK -> "longBreak"
+            },
             "completed" to session.completed,
         )
         userRef().collection("sessions").document(session.id).set(data).await()
@@ -122,7 +126,12 @@ class FirestoreRepository @Inject constructor(
                         startedAt = doc.getTimestamp("startedAt")?.let { Instant.ofEpochSecond(it.seconds) } ?: Instant.EPOCH,
                         endedAt = doc.getTimestamp("endedAt")?.let { Instant.ofEpochSecond(it.seconds) } ?: Instant.EPOCH,
                         duration = (doc.getLong("duration") ?: 0L).toInt(),
-                        type = SessionType.valueOf(doc.getString("type") ?: "WORK"),
+                        type = when (doc.getString("type")) {
+                            "work" -> SessionType.WORK
+                            "shortBreak" -> SessionType.SHORT_BREAK
+                            "longBreak" -> SessionType.LONG_BREAK
+                            else -> SessionType.valueOf((doc.getString("type") ?: "WORK").uppercase())
+                        },
                         completed = doc.getBoolean("completed") ?: false,
                     )
                 } ?: emptyList()

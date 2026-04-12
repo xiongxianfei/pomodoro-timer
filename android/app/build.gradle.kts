@@ -22,7 +22,7 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("Boolean", "USE_EMULATOR", "true")
+            buildConfigField("Boolean", "USE_EMULATOR", "false")
         }
         release {
             isMinifyEnabled = true

@@ -20,12 +20,12 @@ class TimerEngine @Inject constructor() {
         now: Instant = Instant.now(),
     ): Long {
         return when (state.status) {
-            TimerStatus.IDLE, TimerStatus.PAUSED, TimerStatus.BREAK -> {
+            TimerStatus.IDLE, TimerStatus.PAUSED -> {
                 (totalDurationSeconds - state.elapsed).coerceAtLeast(0)
             }
-            TimerStatus.RUNNING -> {
+            TimerStatus.RUNNING, TimerStatus.BREAK -> {
                 val runningFor = state.startedAt?.let { now.epochSecond - it.epochSecond } ?: 0L
-                (totalDurationSeconds - state.elapsed - runningFor).coerceAtLeast(0)
+                (totalDurationSeconds - state.elapsed - runningFor).coerceIn(0L, totalDurationSeconds)
             }
         }
     }

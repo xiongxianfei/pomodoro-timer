@@ -3,6 +3,7 @@ package com.pomodoro.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,6 +44,18 @@ class AuthViewModel @Inject constructor(
                 val credential = GoogleAuthProvider.getCredential(account.idToken, null)
                 auth.signInWithCredential(credential).await()
                 _state.value = AuthState.Authenticated
+            } catch (e: Exception) {
+                _state.value = AuthState.Error(e.message ?: "Sign-in failed")
+            }
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            _state.value = AuthState.Loading
+            try {
+                auth.signInWithEmailAndPassword(email, password).await()
+                // state updated via addAuthStateListener
             } catch (e: Exception) {
                 _state.value = AuthState.Error(e.message ?: "Sign-in failed")
             }

@@ -16,7 +16,8 @@ export function useTimer() {
     const totalDuration = totalDurationForState(timerState, preset)
 
     function tick() {
-      setRemaining(calculateRemaining(timerState, totalDuration, Date.now()))
+      const raw = calculateRemaining(timerState, totalDuration, Date.now())
+      setRemaining(Math.min(raw, totalDuration))
     }
 
     tick()
@@ -31,12 +32,14 @@ export function useTimer() {
   const preset = selectedPreset ?? presets[0]
   const totalDuration = preset ? totalDurationForState(timerState, preset) : 1500
   const isExpired = remaining === 0 && timerState.status === 'running'
+  const isBreakExpired = remaining === 0 && timerState.status === 'break'
 
   return {
     remaining,
     formatted: formatTime(remaining),
     totalDuration,
     isExpired,
+    isBreakExpired,
     progress: totalDuration > 0 ? 1 - remaining / totalDuration : 0,
   }
 }

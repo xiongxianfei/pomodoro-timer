@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { TimerState, Preset, DEFAULT_TIMER_STATE } from '@/types'
 import { writeTimerState, writeSession } from '@/firebase/firestore'
-import { totalDurationForState } from '@/utils/timer'
 import { v4 as uuidv4 } from 'uuid'
+import { usePresetsStore } from './presetsStore'
 
 // Generate a stable device ID for this installation
 function getDeviceId(): string {
@@ -20,7 +20,8 @@ interface TimerStore {
   timerState: TimerState
   selectedPreset: Preset | null
   setTimerState: (state: TimerState) => void
-  setSelectedPreset: (preset: Preset) => void
+  setSelectedPreset: (preset: Preset) => void  // internal: local state only
+  changePreset: (preset: Preset) => Promise<void>  // user action: also writes to Firestore
   start: () => Promise<void>
   pause: () => Promise<void>
   resume: () => Promise<void>
@@ -35,8 +36,16 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   setTimerState: (state) => set({ timerState: state }),
   setSelectedPreset: (preset) => set({ selectedPreset: preset }),
 
+  changePreset: async (preset) => {
+    set({ selectedPreset: preset })
+    const newState = { ...get().timerState, presetId: preset.id }
+    set({ timerState: newState })
+    await writeTimerState(newState, DEVICE_ID)
+  },
+
   start: async () => {
-    const { timerState, selectedPreset } = get()
+    const { timerState } = get()
+    const selectedPreset = get().selectedPreset ?? usePresetsStore.getState().presets[0]
     if (!selectedPreset) return
     const newState: TimerState = {
       ...timerState,
@@ -85,6 +94,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
       startedAt: null,
       pausedAt: null,
       elapsed: 0,
+      isBreak: false,
     }
     set({ timerState: newState })
     await writeTimerState(newState, DEVICE_ID)

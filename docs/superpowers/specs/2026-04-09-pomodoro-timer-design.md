@@ -40,7 +40,7 @@ A personal Pomodoro timer with real-time sync across Android phone, tablet, and 
 |-----------|-----------|-----------------|
 | Android app | Kotlin, Jetpack Compose, Firebase Android SDK, Hilt, Room | Native mobile timer, notifications, foreground service |
 | Electron app | React, TypeScript, Electron, Vite, Zustand, Firebase JS SDK | Desktop timer, system tray, mini-mode |
-| Firebase | Auth, Firestore | Google sign-in, real-time sync, data persistence |
+| Firebase | Auth, Firestore | Google sign-in, email/password sign-in, real-time sync, data persistence |
 
 ## Data Model (Firestore)
 
@@ -84,9 +84,14 @@ All data lives under `users/{uid}/`:
 ```
 
 Built-in defaults (editable, not deletable):
-- **Standard**: 25 / 5 / 15, 4 sessions
-- **Deep Work**: 50 / 10 / 30, 3 sessions
-- **Quick Task**: 15 / 3 / 10, 4 sessions
+
+| ID | Name | Work | Short Break | Long Break | Sessions |
+|----|------|------|-------------|------------|----------|
+| `preset-standard` | Standard | 25 min | 5 min | 15 min | 4 |
+| `preset-deep-work` | Deep Work | 50 min | 10 min | 30 min | 3 |
+| `preset-quick-task` | Quick Task | 15 min | 3 min | 10 min | 4 |
+
+When a new user first signs in, the app seeds these presets to Firestore if the presets collection is empty.
 
 ### `timerState` (single document)
 
@@ -94,9 +99,9 @@ Built-in defaults (editable, not deletable):
 {
   status: "idle" | "running" | "paused" | "break",
   presetId: string,
-  startedAt: timestamp,
+  startedAt: timestamp | null,
   pausedAt: timestamp | null,
-  elapsed: number,               // seconds already elapsed (used to reconstruct remaining time: remaining = totalDuration - elapsed - (now - startedAt) when running, or totalDuration - elapsed when paused)
+  elapsed: number,               // seconds already elapsed before the current startedAt
   currentSession: number,        // which session in the cycle (1-indexed)
   totalSessions: number,         // from preset's sessionsBeforeLongBreak
   isBreak: boolean,
@@ -105,9 +110,16 @@ Built-in defaults (editable, not deletable):
 }
 ```
 
-- Single document — all devices listen via Firestore real-time snapshot listener.
-- `updatedBy` tracks which device made the last change.
-- Conflict resolution: last-write-wins using `updatedAt`.
+**Remaining time formula:**
+- `idle` or `paused`: `totalDuration - elapsed`
+- `running` or `break`: `totalDuration - elapsed - (now - startedAt)`
+
+**Important format constraints (cross-platform compatibility):**
+- `status` must be written as **lowercase** (`"idle"`, `"running"`, `"paused"`, `"break"`). Android reads with `.uppercase()` before mapping to its enum.
+- When `stop()` is called, `isBreak` must be reset to `false` — otherwise the timer displays the break duration instead of the work duration after stopping.
+- `presetId` reflects the currently selected preset. When the user changes the preset (even while idle), `presetId` is written to Firestore so all devices sync to the same selected preset.
+
+Single document — all devices listen via Firestore real-time snapshot listener. Conflict resolution: last-write-wins using `updatedAt`.
 
 ### `sessions/{sessionId}` (collection)
 
@@ -123,6 +135,8 @@ Built-in defaults (editable, not deletable):
   completed: boolean
 }
 ```
+
+**Important format constraint:** `type` must be written as **camelCase** (`"work"`, `"shortBreak"`, `"longBreak"`). Android maps its enum values to these strings explicitly.
 
 Sessions are immutable once written. Created when a timer phase completes.
 
@@ -147,14 +161,25 @@ Denormalized counters updated via Firestore `increment()` on session completion.
 - On state changes (start, pause, resume, stop, complete), the client writes to `timerState` in Firestore.
 - Other devices receive the update via real-time listener and sync their local timer to match.
 - Offline: local timer keeps running. On reconnect, reconcile with Firestore — latest `updatedAt` wins.
-- Pomodoro cycle: work → short break → work → short break → ... → long break (after N sessions per preset config).
-- On work timer completion: auto-create a session record, then start break timer.
+
+**Pomodoro cycle:**
+1. User presses Start → `status: "running"`, `isBreak: false`
+2. Work timer reaches zero → session record is written, `status: "break"`, `isBreak: true`, `startedAt: now` — break **auto-starts** (no user action needed)
+3. Break timer reaches zero → `status: "idle"`, `isBreak: false` — user presses Start for the next session
+4. After `sessionsBeforeLongBreak` work sessions, the break uses `longBreakDuration` instead of `shortBreakDuration`
+
+**Stop behavior:** Always resets to `status: "idle"`, `elapsed: 0`, `startedAt: null`, `isBreak: false`. Pressing Stop during a break or during work always returns to the full work timer display.
+
+### Preset Selection Sync
+
+When a user selects a preset on one device, `presetId` is written to `timerState` in Firestore. All other devices observe this change, look up the matching preset by ID, and update their locally selected preset to match.
 
 ### Presets
 
 - 3 built-in presets (Standard, Deep Work, Quick Task) — editable but not deletable.
 - Users can create unlimited custom presets with name, durations, color, and icon.
 - Presets sync across devices via Firestore.
+- On first sign-in, built-in presets are seeded to Firestore if none exist.
 
 ### Tagging & Projects
 
@@ -168,7 +193,7 @@ Denormalized counters updated via Firestore `increment()` on session completion.
 - **Daily view**: sessions completed, total focus time, breakdown by tag/project.
 - **Weekly/monthly charts**: bar chart of focus minutes per day, streak counter.
 - **Trends**: compare this week vs last week, most productive day/time.
-- **Export**: CSV or JSON export of all session data, filterable by date range and tags.
+- **Export**: CSV or JSON export of all session data, filterable by date range and tags. On Android, saved to the Downloads folder via `MediaStore.Downloads` (API 29+) without requiring storage permissions. "Share via…" is also available.
 
 ### Notifications
 
@@ -176,14 +201,23 @@ Denormalized counters updated via Firestore `increment()` on session completion.
 - **Electron**: system notification via Electron API, sound on completion.
 - Both respect system Do Not Disturb / Focus modes.
 
+## Authentication
+
+Both apps support **email/password sign-in** via Firebase Auth.
+
+Android additionally supports **Google Sign-In** (using the device's Google account via `GoogleSignInClient`).
+
+**Google Sign-In via popup is not supported in Electron.** Electron's `BrowserWindow` blocks the OAuth popup flow (`signInWithPopup`). Email/password is the supported sign-in method for Electron.
+
 ## Android App Details
 
 - **Min SDK**: 26 (Android 8.0, ~95% device coverage)
 - **UI framework**: Jetpack Compose with Material 3
 - **Timer service**: Foreground service with persistent notification showing countdown. Timer survives app being backgrounded or killed by the OS.
-- **Navigation**: Bottom nav — Timer, History, Stats (3 tabs)
+- **Navigation**: Bottom nav — Timer, History, Stats, Profile (4 tabs). Uses `saveState`/`restoreState` on navigation to preserve ViewModel state across tab switches (prevents preset reset on tab change).
 - **Local cache**: Room database for offline session history
 - **DI**: Hilt
+- **Session expiry detection**: `LaunchedEffect(remainingSeconds, status)` in `TimerScreen` — calls `completeSession()` when work reaches zero, `stop()` when break reaches zero.
 - **Future**: Architecture supports home screen widget and Wear OS companion
 
 ## Electron App Details
@@ -191,20 +225,33 @@ Denormalized counters updated via Firestore `increment()` on session completion.
 - **Framework**: Electron + Vite + React
 - **UI**: Custom lightweight components (not Material UI) matching clean/minimal style
 - **State management**: Zustand
+- **User data path**: `%APPDATA%\PomodoroTimer` (set explicitly via `app.setPath('userData', ...)` before `app.whenReady()` to avoid Windows cache permission errors)
 - **System tray**: Minimize to tray, tray icon shows timer state (idle/running/break), right-click context menu for quick actions (start, pause, stop)
 - **Window modes**: Normal window, always-on-top option, compact mini-mode (small floating timer)
 - **Local cache**: IndexedDB for offline session history
+- **Session expiry detection**: `isExpired` (status=running, remaining=0) and `isBreakExpired` (status=break, remaining=0) flags in `useTimer` hook, handled via `useEffect` in `TimerScreen`.
 
 ## Sync Protocol
 
-1. User performs action (start/pause/stop) on Device A.
+1. User performs action (start/pause/stop/preset change) on Device A.
 2. Device A updates local timer state immediately (optimistic).
 3. Device A writes new `timerState` document to Firestore with current timestamp as `updatedAt`.
 4. Firestore pushes real-time update to Device B, C, etc.
-5. Each receiving device updates its local timer to match the new state.
+5. Each receiving device updates its local timer and selected preset to match the new state (using `presetId` to look up the preset object).
 6. If device is offline: local timer continues independently. On reconnect, Firestore offline persistence replays the write and receives any newer state.
 
 Conflict resolution: last-write-wins. Since this is a single-user app, conflicts are rare and the most recent action is always correct.
+
+## Firebase Deployment
+
+Firestore security rules and indexes must be deployed to the production Firebase project before the apps can read/write data:
+
+```bash
+cd firebase
+firebase deploy --only firestore
+```
+
+Without this, all Firestore reads and writes are blocked by default deny-all rules, and the apps will appear to work locally but sync will silently fail.
 
 ## Testing Strategy
 

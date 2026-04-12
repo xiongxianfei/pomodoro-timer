@@ -4,19 +4,33 @@ import { usePresetsStore } from '@/store/presetsStore'
 import { useTimer } from '@/hooks/useTimer'
 
 export function TimerScreen() {
-  const { start, pause, resume, stop, completeSession, timerState, setSelectedPreset, selectedPreset } =
+  const { start, pause, resume, stop, completeSession, timerState, changePreset, setSelectedPreset, selectedPreset } =
     useTimerStore()
   const presets = usePresetsStore((s) => s.presets)
-  const { formatted, isExpired } = useTimer()
+  const { formatted, isExpired, isBreakExpired } = useTimer()
+
+  // Auto-select first preset if none is selected and presets are available
+  useEffect(() => {
+    if (!selectedPreset && presets.length > 0) {
+      changePreset(presets[0])
+    }
+  }, [presets, selectedPreset])
 
   useEffect(() => {
-    if (isExpired && !timerState.isBreak) {
+    if (isExpired) {
       completeSession()
       new Notification('Pomodoro complete!', { body: 'Time for a break.' })
       const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA==')
       audio.play().catch(() => {})
     }
   }, [isExpired])
+
+  useEffect(() => {
+    if (isBreakExpired) {
+      stop()
+      new Notification('Break over!', { body: 'Ready for the next session?' })
+    }
+  }, [isBreakExpired])
 
   const { status, isBreak, currentSession, totalSessions } = timerState
 
@@ -80,7 +94,7 @@ export function TimerScreen() {
           {presets.map((p) => (
             <button
               key={p.id}
-              onClick={() => setSelectedPreset(p)}
+              onClick={() => changePreset(p)}
               className={`px-4 py-1.5 rounded-full text-sm transition-colors ${
                 selectedPreset?.id === p.id
                   ? 'bg-gray-900 text-white'

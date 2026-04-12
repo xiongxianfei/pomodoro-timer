@@ -4,9 +4,10 @@ import {
   subscribeToRecentSessions,
   subscribeToPresets,
   subscribeToTags,
+  writePreset,
 } from '@/firebase/firestore'
 import { useTimerStore } from './timerStore'
-import { usePresetsStore } from './presetsStore'
+import { usePresetsStore, BUILT_IN_PRESETS } from './presetsStore'
 import { useStatsStore } from './statsStore'
 
 interface SyncStore {
@@ -19,12 +20,25 @@ export const useSyncStore = create<SyncStore>(() => ({
   start: () => {
     const unsubs = [
       subscribeToTimerState((state) => {
-        if (state) useTimerStore.getState().setTimerState(state)
+        if (state) {
+          useTimerStore.getState().setTimerState(state)
+          // Sync selected preset from remote presetId
+          if (state.presetId) {
+            const presets = usePresetsStore.getState().presets
+            const match = presets.find((p) => p.id === state.presetId)
+            if (match) useTimerStore.getState().setSelectedPreset(match)
+          }
+        }
       }),
       subscribeToRecentSessions(500, (sessions) => {
         useStatsStore.getState().setSessions(sessions)
       }),
       subscribeToPresets((presets) => {
+        if (presets.length === 0) {
+          // Seed built-in presets for new users (runs once, Firestore listener fires again with data)
+          Promise.all(BUILT_IN_PRESETS.map(writePreset)).catch(() => {})
+          return
+        }
         usePresetsStore.getState().setPresets(presets)
         // Set default selected preset if none selected
         const timerStore = useTimerStore.getState()

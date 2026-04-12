@@ -10,7 +10,7 @@ export function calculateRemaining(
   totalDurationSeconds: number,
   now: number = Date.now(),
 ): number {
-  if (state.status === 'running' && state.startedAt !== null) {
+  if ((state.status === 'running' || state.status === 'break') && state.startedAt !== null) {
     const runningForSeconds = (now - state.startedAt) / 1000
     return Math.max(0, totalDurationSeconds - state.elapsed - runningForSeconds)
   }

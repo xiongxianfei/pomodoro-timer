@@ -63,12 +63,22 @@ class TimerViewModel @Inject constructor(
             firestoreRepo.observeTimerState()
                 .catch { /* user signed out, flow closed cleanly */ }
                 .collect { state ->
-                    if (state != null) _timerState.value = state
+                    if (state != null) {
+                        _timerState.value = state
+                        // Sync selected preset from remote state's presetId
+                        val match = _presets.value.find { it.id == state.presetId }
+                        if (match != null) _selectedPreset.value = match
+                    }
                 }
         }
     }
 
-    fun selectPreset(preset: Preset) { _selectedPreset.value = preset }
+    fun selectPreset(preset: Preset) {
+        _selectedPreset.value = preset
+        // Persist selected preset so other devices sync to it
+        val newState = _timerState.value.copy(presetId = preset.id)
+        viewModelScope.launch { firestoreRepo.writeTimerState(newState, deviceId) }
+    }
 
     fun start() {
         val preset = _selectedPreset.value ?: BUILT_IN_PRESETS.first()
@@ -112,6 +122,7 @@ class TimerViewModel @Inject constructor(
             elapsed = 0,
             startedAt = null,
             pausedAt = null,
+            isBreak = false,
         )
         viewModelScope.launch { firestoreRepo.writeTimerState(newState, deviceId) }
     }

@@ -1,7 +1,11 @@
 import { app, BrowserWindow, shell } from 'electron'
 import path from 'path'
+import os from 'os'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
+
+// Set user data path before app is ready to avoid cache permission errors on Windows
+app.setPath('userData', path.join(os.homedir(), 'AppData', 'Roaming', 'PomodoroTimer'))
 
 let mainWindow: BrowserWindow | null = null
 

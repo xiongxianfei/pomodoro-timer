@@ -22,6 +22,17 @@ fun TimerScreen(viewModel: TimerViewModel = hiltViewModel()) {
     val seconds = remainingSeconds % 60
     val timeText = "%02d:%02d".format(minutes, seconds)
 
+    // Auto-advance: work done → break, break done → idle
+    LaunchedEffect(remainingSeconds, timerState.status) {
+        if (remainingSeconds == 0L) {
+            when (timerState.status) {
+                TimerStatus.RUNNING -> viewModel.completeSession()
+                TimerStatus.BREAK -> viewModel.stop()
+                else -> Unit
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
