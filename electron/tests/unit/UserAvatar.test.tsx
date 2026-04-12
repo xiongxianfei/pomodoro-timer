@@ -3,7 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { useAuthStore } from '@/store/authStore'
 
-vi.mock('@/store/authStore')
+vi.mock('@/store/authStore', () => ({
+  useAuthStore: vi.fn(),
+}))
 
 const mockSignOut = vi.fn()
 
