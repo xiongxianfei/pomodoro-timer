@@ -91,7 +91,7 @@ fun PresetsScreen(viewModel: PresetsViewModel = hiltViewModel()) {
     deleteTarget?.let { preset ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete "${preset.name}"?") },
+            title = { Text("Delete \"${preset.name}\"?") },
             text = { Text("This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = {
