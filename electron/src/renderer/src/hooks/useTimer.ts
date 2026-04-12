@@ -7,7 +7,14 @@ export function useTimer() {
   const timerState = useTimerStore((s) => s.timerState)
   const selectedPreset = useTimerStore((s) => s.selectedPreset)
   const presets = usePresetsStore((s) => s.presets)
-  const [remaining, setRemaining] = useState(0)
+  const [remaining, setRemaining] = useState(() => {
+    const state = useTimerStore.getState().timerState
+    const preset =
+      useTimerStore.getState().selectedPreset ?? usePresetsStore.getState().presets[0]
+    if (!preset) return 0
+    const total = totalDurationForState(state, preset)
+    return Math.min(calculateRemaining(state, total, Date.now()), total)
+  })
 
   useEffect(() => {
     const preset = selectedPreset ?? presets[0]
