@@ -175,7 +175,4 @@ describe('Sign-out behaviour', () => {
 
 // ── Integration (requires F2 — Navigation integration) ────────────────────────
 
-describe('Integration with Navigation', () => {
-  it.todo('T17: UserAvatar inside Navigation — dropdown appears on click')
-  it.todo('T18: UserAvatar inside Navigation — sign out flow calls signOut')
-})
+// T17 and T18 are implemented in tests/unit/Navigation.test.tsx
