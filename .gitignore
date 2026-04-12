@@ -1,6 +1,7 @@
 # Firebase secrets
 android/app/google-services.json
 electron/.env
+electron/.env.development
 electron/.env.local
 electron/.env.*.local
 
