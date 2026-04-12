@@ -1,11 +1,14 @@
 import { app, BrowserWindow, shell } from 'electron'
 import path from 'path'
-import os from 'os'
+import fs from 'fs'
 import { createTray } from './tray'
 import { registerIpcHandlers } from './ipc'
 
-// Set user data path before app is ready to avoid cache permission errors on Windows
-app.setPath('userData', path.join(os.homedir(), 'AppData', 'Roaming', 'PomodoroTimer'))
+// Use Electron's resolved appData path for cross-platform correctness, then
+// pre-create the directory so Chromium never hits a race writing the cache/quota db.
+const userDataPath = path.join(app.getPath('appData'), 'PomodoroTimer')
+fs.mkdirSync(userDataPath, { recursive: true })
+app.setPath('userData', userDataPath)
 
 let mainWindow: BrowserWindow | null = null
 
@@ -27,6 +30,23 @@ function createWindow() {
   mainWindow.on('ready-to-show', () => mainWindow?.show())
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Firebase signInWithPopup opens /__/auth/handler which then redirects through
+    // Google OAuth and communicates the result back via window.opener.postMessage.
+    // Allow those windows as real BrowserWindows so the flow can complete.
+    if (url.includes('/__/auth/') || url.startsWith('https://accounts.google.com')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 650,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      }
+    }
+    // All other external links open in the system browser.
     shell.openExternal(url)
     return { action: 'deny' }
   })
