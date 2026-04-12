@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "seed": "node seed/seed-emulator.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "firebase emulators:exec --only auth,firestore \"jest --forceExit\"",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 15000
   },
   "keywords": [],
   "author": "",
@@ -13,5 +18,9 @@
   "type": "commonjs",
   "dependencies": {
     "firebase-admin": "^13.8.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "jest": "^30.3.0"
   }
 }

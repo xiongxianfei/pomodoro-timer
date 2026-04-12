@@ -50,13 +50,25 @@ npm run build        # Production build
 
 CI uses `gradle assembleDebug` (system Gradle, not `gradlew`) with a mock `google-services.json` — no interactive commands.
 
-### Firebase emulator (run from `firebase/`)
+### Firebase (run from `firebase/`)
 
 ```bash
-firebase emulators:start   # Auth on :9099, Firestore on :8080, UI on :4000
-node seed/seed.js          # Seed test data (emulator must be running)
-firebase deploy --only firestore   # Deploy rules + indexes to production
+# Security rules tests — starts the emulator automatically, runs all tests, shuts down
+npm test
+
+# Start emulator for manual development (Auth :9099, Firestore :8080, UI :4000)
+firebase emulators:start
+
+# Seed test data (emulator must already be running)
+npm run seed
+
+# Deploy rules + indexes to production
+firebase deploy --only firestore
 ```
+
+**Test location:** `firebase/tests/rules.test.js` — uses `@firebase/rules-unit-testing` + Jest to verify that Firestore security rules allow/deny the correct operations for each subcollection. The emulator is started and stopped automatically by `npm test` via `firebase emulators:exec`.
+
+**Prerequisite:** `firebase-tools` must be installed globally (`npm install -g firebase-tools`) and you must be logged in (`firebase login`).
 
 ---
 
@@ -138,7 +150,7 @@ Firebase secrets are injected via GitHub Actions secrets (see `.github/workflows
 - All changes go through a feature branch → PR → merge to `main`. Never push directly to `main`.
 - Branch naming: `feat/<scope>-<description>`, `fix/<description>`
 - PRs reference the GitHub issue they close with `Closes #N` in the commit message or PR body.
-- Before opening a PR: run `npm test` in `electron/` and `./gradlew test` in `android/`. Instrumented tests and the full Android build are verified by CI.
+- Before opening a PR: run `npm test` in `electron/`, `./gradlew test` in `android/`, and `npm test` in `firebase/`. Instrumented Android tests and the full build are verified by CI.
 
 ---
 
