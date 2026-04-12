@@ -1,1 +1,35 @@
+# Firebase secrets
 android/app/google-services.json
+electron/.env
+electron/.env.local
+electron/.env.*.local
+
+# Android build
+android/.gradle/
+android/app/build/
+android/build/
+android/*.hprof
+android/**/*.hprof
+
+# Electron build
+electron/out/
+electron/dist/
+electron/node_modules/
+
+# Firebase emulator logs
+firebase/firestore-debug.log
+firebase/ui-debug.log
+firebase/.firebase/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude / Superpowers
+.claude/
+.superpowers/
