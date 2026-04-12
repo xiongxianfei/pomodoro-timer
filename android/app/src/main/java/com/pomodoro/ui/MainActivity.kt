@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,7 @@ import com.pomodoro.ui.auth.AuthScreen
 import com.pomodoro.ui.auth.AuthState
 import com.pomodoro.ui.auth.AuthViewModel
 import com.pomodoro.ui.history.HistoryScreen
+import com.pomodoro.ui.presets.PresetsScreen
 import com.pomodoro.ui.profile.ProfileScreen
 import com.pomodoro.ui.stats.StatsScreen
 import com.pomodoro.ui.theme.PomodoroTheme
@@ -76,6 +78,7 @@ private fun MainContent() {
         NavTab("timer", Icons.Default.Timer, "Timer"),
         NavTab("history", Icons.Default.History, "History"),
         NavTab("stats", Icons.Default.BarChart, "Stats"),
+        NavTab("presets", Icons.Default.Tune, "Presets"),
         NavTab("profile", Icons.Default.Person, "Profile"),
     )
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
@@ -104,6 +107,7 @@ private fun MainContent() {
             composable("timer") { TimerScreen() }
             composable("history") { HistoryScreen() }
             composable("stats") { StatsScreen() }
+            composable("presets") { PresetsScreen() }
             composable("profile") { ProfileScreen() }
         }
     }
