@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.1.1] - 2026-04-13
+
+### Bug Fixes
+
+- **Release workflow: Electron binaries now attached to GitHub Release** — `npm run build` was called instead of `npm run dist`, so electron-builder never ran and no installable binaries (`.exe`, `.dmg`, `.AppImage`) were produced. A missing `publish` job meant artifacts were never uploaded to the release page even if they had been built.
+
+---
+
 ## [v1.1.0] - 2026-04-13
 
 ### Features
