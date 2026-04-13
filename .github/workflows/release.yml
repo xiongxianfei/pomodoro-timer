@@ -107,6 +107,8 @@ jobs:
     name: Publish GitHub Release
     needs: [release-electron, release-android]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
