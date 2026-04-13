@@ -52,3 +52,7 @@ Render a clickable avatar in the nav bar that opens a dropdown showing the signe
 - [ ] Integrated into Navigation bar (see F2 in plan)
 
 ## Gotchas
+- 2026-04-13: `vi.mock('@/store/authStore')` without an explicit factory loads the real module, which triggers Firebase initialization and causes `auth/invalid-api-key` in CI. Always use an explicit factory: `vi.mock('@/store/authStore', () => ({ useAuthStore: vi.fn() }))`.
+- 2026-04-13: Testing Library event names are camelCase — `fireEvent.mouseDown`, not `fireEvent.mousedown`. The lowercase form silently does nothing.
+- 2026-04-13: Vitest does not include jest-dom matchers by default. Use `element.getAttribute('attr')` instead of `expect(el).toHaveAttribute('attr')`, or add `@testing-library/jest-dom` setup.
+- 2026-04-13: `user.displayName` can be null even after Google Sign-In (e.g. first-time users before profile sync). The fallback chain (displayName → email prefix → `?`) is required, not optional.

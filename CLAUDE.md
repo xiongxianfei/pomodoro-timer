@@ -175,6 +175,16 @@ Firebase secrets are injected via GitHub Actions secrets (see `.github/workflows
 
 Both are in `.gitignore`. If either file is accidentally staged, remove it with `git rm --cached` before committing.
 
+---
+
+## Known Pitfalls
+
+- **Vitest mocking modules that import Firebase:** `vi.mock('path/to/store')` without an explicit factory causes Vitest to auto-mock, which loads the real module, which initializes Firebase and fails with `auth/invalid-api-key` in CI. Always supply a factory: `vi.mock('@/store/authStore', () => ({ useAuthStore: vi.fn() }))`.
+- **Testing Library event names are camelCase:** `fireEvent.mouseDown`, not `fireEvent.mousedown`. The lowercase form is silently ignored and the test passes erroneously.
+- **Vitest has no jest-dom matchers by default:** Use `element.getAttribute('attr')` instead of `toHaveAttribute`, or add `@testing-library/jest-dom` to the Vitest setup file.
+
+---
+
 ## Rules
 <important if="user asks to build or implement a feature">
 STOP. Do not write code directly. Check if a spec exists in specs/ 
