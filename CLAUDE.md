@@ -11,6 +11,18 @@ firebase/       Firestore rules, indexes, emulator config, seed script
 docs/           Design spec and implementation plans
 ```
 
+## Development Workflow
+All features follow this pipeline. Do not skip steps.
+
+/plan → /plan-review → /spec → /test-spec → /ci → /implement → /review → /pr → /workflows
+
+- Each phase produces a specific artifact (see docs/ and specs/)
+- /implement and /review MUST run in fresh sessions
+- Tests come before implementation (TDD)
+- Every PR links back to its spec
+
+Commands are in .claude/commands/. Read the relevant command before executing.
+
 ---
 
 ## Commands
@@ -162,3 +174,10 @@ Firebase secrets are injected via GitHub Actions secrets (see `.github/workflows
 | `electron/.env` | `VITE_FIREBASE_*` keys |
 
 Both are in `.gitignore`. If either file is accidentally staged, remove it with `git rm --cached` before committing.
+
+## Rules
+<important if="user asks to build or implement a feature">
+STOP. Do not write code directly. Check if a spec exists in specs/ 
+for this feature. If not, run /plan first. Never implement without 
+a spec.
+</important>
