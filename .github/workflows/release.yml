@@ -7,10 +7,19 @@ on:
 
 jobs:
   release-electron:
-    name: Build Electron release
+    name: Build Electron (${{ matrix.os }})
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: windows-latest
+            artifact: electron-windows
+            glob: electron/dist/*.exe
+          - os: macos-latest
+            artifact: electron-macos
+            glob: 'electron/dist/*.dmg electron/dist/*.zip'
+          - os: ubuntu-latest
+            artifact: electron-linux
+            glob: 'electron/dist/*.AppImage electron/dist/*.deb'
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -47,9 +56,21 @@ jobs:
           VITE_USE_EMULATOR=false
           EOF
 
-      - name: Build
+      - name: Build and package
         working-directory: electron
-        run: npm run build
+        run: npm run dist
+
+      - name: Upload Electron artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            electron/dist/*.exe
+            electron/dist/*.dmg
+            electron/dist/*.zip
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+          if-no-files-found: warn
 
   release-android:
     name: Build Android release APK
@@ -79,5 +100,26 @@ jobs:
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: android-apk
           path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+  publish:
+    name: Publish GitHub Release
+    needs: [release-electron, release-android]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lR artifacts/
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/**
