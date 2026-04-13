@@ -2,6 +2,11 @@
   "name": "pomodoro-timer",
   "version": "1.0.0",
   "description": "Cross-platform Pomodoro timer desktop app",
+  "homepage": "https://github.com/xiongxianfei/pomodoro-timer",
+  "author": {
+    "name": "xiongxianfei",
+    "email": "xiongxianfei@users.noreply.github.com"
+  },
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
